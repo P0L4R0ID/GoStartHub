@@ -83,10 +83,31 @@ export async function POST(
             });
         });
 
-        return NextResponse.json(
-            { message: 'Application approved successfully' },
-            { status: 200 }
-        );
+        // Verify the profile was created
+        const verifyProfile = await prisma.mentorProfile.findUnique({
+            where: { userId: application.userId }
+        });
+
+        const verifyUser = await prisma.user.findUnique({
+            where: { id: application.userId },
+            select: { role: true, name: true, email: true }
+        });
+
+        console.log('Verification after approve:', {
+            userId: application.userId,
+            profileExists: !!verifyProfile,
+            userRole: verifyUser?.role,
+            userName: verifyUser?.name
+        });
+
+        return NextResponse.json({
+            message: 'Application approved successfully',
+            debug: {
+                profileCreated: !!verifyProfile,
+                userRole: verifyUser?.role,
+                userName: verifyUser?.name || verifyUser?.email
+            }
+        }, { status: 200 });
 
     } catch (error: any) {
         console.error('Approve application error:', error);

@@ -2,12 +2,36 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-utils';
 
+// Force dynamic for Vercel
+export const dynamic = 'force-dynamic';
+
+// Handle OPTIONS for CORS preflight
+export async function OPTIONS() {
+    return new NextResponse(null, {
+        status: 200,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+        },
+    });
+}
+
 export async function POST(request: Request) {
     try {
         // Authenticate user
         const userId = await requireAuth();
 
-        const formData = await request.formData();
+        let formData;
+        try {
+            formData = await request.formData();
+        } catch (formError: any) {
+            console.error('FormData parsing error:', formError);
+            return NextResponse.json(
+                { error: 'Failed to parse form data: ' + formError.message },
+                { status: 400 }
+            );
+        }
 
         // Extract text fields
         const bio = formData.get('bio') as string;

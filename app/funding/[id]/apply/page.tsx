@@ -177,6 +177,32 @@ export default function FundingApplicationPage() {
         return;
       }
 
+      // Filter out empty strings for optional enum fields
+      const applicationData: Partial<Application> = {
+        fullName: formData.fullName,
+        icNumber: formData.icNumber,
+        phoneNumber: formData.phoneNumber,
+        country: formData.country,
+        hasRegisteredCompany: formData.hasRegisteredCompany,
+        companyName: formData.companyName,
+        companyWebsite: formData.companyWebsite,
+        companyDescription: formData.companyDescription,
+        companyIncorporatedDate: formData.companyIncorporatedDate,
+        officeAddress: formData.officeAddress,
+        focusArea: formData.focusArea,
+        technologyArea: formData.technologyArea,
+        proposedActivities: formData.proposedActivities,
+        industryFocus: formData.industryFocus,
+      };
+
+      // Only add these if they have valid values (not empty strings)
+      if (formData.hasOfficeInMalaysia) {
+        applicationData.hasOfficeInMalaysia = formData.hasOfficeInMalaysia as 'yes' | 'no' | 'used-to-have' | 'thinking-about-it';
+      }
+      if (formData.companyStage) {
+        applicationData.companyStage = formData.companyStage as Application['companyStage'];
+      }
+
       const newApplication: Application = {
         id: Date.now().toString(),
         opportunityId: params.id as string,
@@ -188,8 +214,7 @@ export default function FundingApplicationPage() {
         message: formData.message,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        // Spread other form data fields
-        ...formData
+        ...applicationData
       };
 
       // 1. Save to Local Storage (Applications)

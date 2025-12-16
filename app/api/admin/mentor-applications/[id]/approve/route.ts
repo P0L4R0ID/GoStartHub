@@ -33,12 +33,8 @@ export async function POST(
             );
         }
 
-        if (application.status !== 'PENDING') {
-            return NextResponse.json(
-                { error: 'Application has already been reviewed' },
-                { status: 400 }
-            );
-        }
+
+        // Allow approving both PENDING and REJECTED applications
 
         // Start transaction: update user role, create mentor profile, update application
         await prisma.$transaction(async (tx) => {

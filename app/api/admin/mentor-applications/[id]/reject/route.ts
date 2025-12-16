@@ -35,25 +35,34 @@ export async function POST(
             );
         }
 
-        if (application.status !== 'PENDING') {
-            return NextResponse.json(
-                { error: 'Application has already been reviewed' },
-                { status: 400 }
-            );
-        }
+        // Allow rejecting both PENDING and APPROVED applications
 
-        // Update application status to REJECTED
-        await prisma.mentorApplication.update({
-            where: { id },
-            data: {
-                status: 'REJECTED',
-                reviewedAt: new Date(),
-                adminNotes: adminNotes || null
-            }
+        // Use transaction to: reset user role, delete mentor profile, update application
+        await prisma.$transaction(async (tx) => {
+            // Reset user role to USER
+            await tx.user.update({
+                where: { id: application.userId },
+                data: { role: 'USER' }
+            });
+
+            // Delete mentor profile if it exists
+            await tx.mentorProfile.deleteMany({
+                where: { userId: application.userId }
+            });
+
+            // Update application status to REJECTED
+            await tx.mentorApplication.update({
+                where: { id },
+                data: {
+                    status: 'REJECTED',
+                    reviewedAt: new Date(),
+                    adminNotes: adminNotes || null
+                }
+            });
         });
 
         return NextResponse.json(
-            { message: 'Application rejected' },
+            { message: 'Application rejected and mentor access revoked' },
             { status: 200 }
         );
 

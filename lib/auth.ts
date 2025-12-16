@@ -4,7 +4,7 @@ const ADMIN_COOKIE_NAME = 'gostarthub_admin_session';
 
 
 export async function checkAdminAuth() {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const session = cookieStore.get(ADMIN_COOKIE_NAME);
     return session?.value === 'authenticated';
 }
@@ -25,7 +25,7 @@ export async function loginAdmin(formData: FormData) {
     const ADMIN_PASSWORD = 'admin123';
 
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        const cookieStore = cookies();
+        const cookieStore = await cookies();
         cookieStore.set(ADMIN_COOKIE_NAME, 'authenticated', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -64,7 +64,7 @@ export async function loginAdmin(formData: FormData) {
             return { success: false, error: 'Invalid email or password' };
         }
 
-        const cookieStore = cookies();
+        const cookieStore = await cookies();
         // Set cookie for server-side auth
         cookieStore.set(ADMIN_COOKIE_NAME, 'authenticated', {
             httpOnly: true,
@@ -90,6 +90,6 @@ export async function loginAdmin(formData: FormData) {
 }
 
 export async function logoutAdmin() {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete(ADMIN_COOKIE_NAME);
 }

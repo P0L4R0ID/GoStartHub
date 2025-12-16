@@ -48,9 +48,21 @@ export async function POST(
                 data: { role: 'MENTOR' }
             });
 
-            // Create mentor profile from application data
-            await tx.mentorProfile.create({
-                data: {
+
+            // Create or update mentor profile from application data
+            await tx.mentorProfile.upsert({
+                where: { userId: application.userId },
+                update: {
+                    bio: application.bio,
+                    expertise: application.expertise,
+                    experience: application.experience,
+                    company: application.company,
+                    availability: application.availability || 'available',
+                    mentorType: application.mentorType || null,
+                    languages: application.languages || null,
+                    linkedin: application.linkedin || null
+                },
+                create: {
                     userId: application.userId,
                     bio: application.bio,
                     expertise: application.expertise,

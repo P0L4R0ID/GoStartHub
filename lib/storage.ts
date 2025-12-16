@@ -33,17 +33,6 @@ export const storage = {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
   },
 
-  // Mentors
-  getMentors: (): any[] => {
-    if (typeof window === 'undefined') return [];
-    const data = localStorage.getItem(STORAGE_KEYS.MENTORS);
-    return data ? JSON.parse(data) : [];
-  },
-
-  saveMentors: (mentors: any[]): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEYS.MENTORS, JSON.stringify(mentors));
-  },
 
   // Startups
   getStartups: (): any[] => {

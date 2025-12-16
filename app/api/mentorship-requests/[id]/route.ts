@@ -37,9 +37,10 @@ const writeRequests = (requests: any[]) => {
 // PATCH - Update mentorship request status (approve/reject)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { status, mentorResponse } = body;
 
@@ -51,7 +52,7 @@ export async function PATCH(
     }
 
     const requests = readRequests();
-    const requestIndex = requests.findIndex((req: any) => req.id === params.id);
+    const requestIndex = requests.findIndex((req: any) => req.id === id);
 
     if (requestIndex === -1) {
       return NextResponse.json(
@@ -83,11 +84,12 @@ export async function PATCH(
 // DELETE - Delete a mentorship request
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const requests = readRequests();
-    const filteredRequests = requests.filter((req: any) => req.id !== params.id);
+    const filteredRequests = requests.filter((req: any) => req.id !== id);
 
     if (requests.length === filteredRequests.length) {
       return NextResponse.json(

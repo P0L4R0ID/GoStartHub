@@ -4,8 +4,9 @@ import { checkAdminAuth } from '@/lib/auth';
 
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params;
     const isAdmin = await checkAdminAuth();
 
     if (!isAdmin) {
@@ -14,7 +15,7 @@ export async function POST(
 
     try {
         const startup = await prisma.startup.update({
-            where: { id: params.id },
+            where: { id },
             data: { status: 'REJECTED' },
         });
 

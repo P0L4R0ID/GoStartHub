@@ -5,9 +5,10 @@ import { checkAdminAuth } from '@/lib/auth';
 // DELETE - Delete a mentor account
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id: mentorId } = await params;
         const isAdmin = await checkAdminAuth();
         if (!isAdmin) {
             return NextResponse.json(
@@ -15,8 +16,6 @@ export async function DELETE(
                 { status: 401 }
             );
         }
-
-        const mentorId = params.id;
 
         // Check if user exists and is a mentor
         const mentor = await prisma.user.findUnique({

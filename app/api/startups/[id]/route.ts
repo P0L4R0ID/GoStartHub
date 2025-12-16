@@ -50,8 +50,9 @@ export async function GET(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params;
     const isAdmin = await checkAdminAuth();
 
     if (!isAdmin) {
@@ -59,8 +60,6 @@ export async function DELETE(
     }
 
     try {
-        const id = params.id;
-
         await prisma.startup.delete({
             where: { id },
         });

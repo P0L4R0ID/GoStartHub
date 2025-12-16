@@ -4,7 +4,7 @@ import { checkAdminAuth } from '@/lib/auth';
 
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         // Verify user is admin
@@ -17,7 +17,7 @@ export async function POST(
             );
         }
 
-        const { id } = params;
+        const { id } = await params;
 
         // Parse request body for optional admin notes
         const body = await request.json().catch(() => ({}));

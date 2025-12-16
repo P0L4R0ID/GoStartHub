@@ -5,9 +5,10 @@ import { verifyUserSession } from '@/lib/auth-helpers';
 // POST - Archive user's own startup
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id: startupId } = await params;
         const user = await verifyUserSession();
         if (!user) {
             return NextResponse.json(
@@ -15,8 +16,6 @@ export async function POST(
                 { status: 401 }
             );
         }
-
-        const startupId = params.id;
 
         // Check if startup exists and belongs to this user
         const startup = await prisma.startup.findUnique({

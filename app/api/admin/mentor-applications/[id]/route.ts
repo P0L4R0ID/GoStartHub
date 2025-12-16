@@ -4,7 +4,7 @@ import { checkAdminAuth } from '@/lib/auth';
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         // Verify user is admin
@@ -17,7 +17,7 @@ export async function DELETE(
             );
         }
 
-        const applicationId = params.id;
+        const { id: applicationId } = await params;
 
         // Find the application to get the user ID
         const application = await prisma.mentorApplication.findUnique({

@@ -1,14 +1,30 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-utils';
+import { writeFile, mkdir } from 'fs/promises';
+import path from 'path';
 
 export async function POST(request: Request) {
     try {
         // Authenticate user
         const userId = await requireAuth();
 
-        const body = await request.json();
-        const { bio, expertise, experience, portfolioUrl, company, availability, mentorType, mentorTypeOther, languages, linkedinUrl } = body;
+        const formData = await request.formData();
+
+        // Extract text fields
+        const bio = formData.get('bio') as string;
+        const expertise = formData.get('expertise') as string;
+        const experience = formData.get('experience') as string;
+        const portfolioUrl = formData.get('portfolioUrl') as string | null;
+        const company = formData.get('company') as string | null;
+        const availability = formData.get('availability') as string | null;
+        const mentorType = formData.get('mentorType') as string | null;
+        const mentorTypeOther = formData.get('mentorTypeOther') as string | null;
+        const languages = formData.get('languages') as string;
+        const linkedinUrl = formData.get('linkedinUrl') as string | null;
+
+        // Extract file
+        const profileImageFile = formData.get('profileImage') as File | null;
 
         // Validate required fields
         if (!bio || !expertise || !experience) {
@@ -39,20 +55,43 @@ export async function POST(request: Request) {
             );
         }
 
+        // Handle profile image upload
+        let profileImagePath: string | null = null;
+        if (profileImageFile && profileImageFile.size > 0) {
+            const bytes = await profileImageFile.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+
+            // Create unique filename
+            const ext = path.extname(profileImageFile.name) || '.jpg';
+            const filename = `mentor-${userId}-${Date.now()}${ext}`;
+
+            // Ensure upload directory exists
+            const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'mentors');
+            await mkdir(uploadDir, { recursive: true });
+
+            // Save file
+            const filePath = path.join(uploadDir, filename);
+            await writeFile(filePath, buffer);
+
+            // Store relative path for web access
+            profileImagePath = `/uploads/mentors/${filename}`;
+        }
+
         // Create mentor application
         const finalMentorType = mentorType === 'other' ? mentorTypeOther : mentorType;
         const application = await prisma.mentorApplication.create({
             data: {
                 userId,
                 bio,
-                expertise: typeof expertise === 'string' ? expertise : JSON.stringify(expertise),
+                expertise: expertise,
                 experience,
                 portfolioUrl: portfolioUrl || null,
                 company: company || null,
                 availability: availability || null,
                 mentorType: finalMentorType || null,
-                languages: typeof languages === 'string' ? languages : JSON.stringify(languages),
+                languages: languages,
                 linkedin: linkedinUrl || null,
+                profileImage: profileImagePath,
                 status: 'PENDING'
             }
         });

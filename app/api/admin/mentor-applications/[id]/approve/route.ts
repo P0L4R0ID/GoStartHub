@@ -56,7 +56,8 @@ export async function POST(
                     availability: application.availability || 'available',
                     mentorType: application.mentorType || null,
                     languages: application.languages || null,
-                    linkedin: application.linkedin || null
+                    linkedin: application.linkedin || null,
+                    profileImage: application.profileImage || null
                 },
                 create: {
                     userId: application.userId,
@@ -65,7 +66,7 @@ export async function POST(
                     experience: application.experience,
                     company: application.company,
                     availability: application.availability || 'available',
-                    profileImage: null,
+                    profileImage: application.profileImage || null,
                     socialLinks: null,
                     mentorType: application.mentorType || null,
                     languages: application.languages || null,

@@ -101,18 +101,26 @@ export default function MentorApplyPage() {
         }
 
         try {
+            const submitData = new FormData();
+            submitData.append('bio', formData.bio);
+            submitData.append('expertise', formData.expertise.split(',').map(e => e.trim()).filter(Boolean).join(','));
+            submitData.append('experience', formData.experience);
+            submitData.append('languages', formData.languages.split(',').map(l => l.trim()).filter(Boolean).join(','));
+            submitData.append('company', formData.company);
+            submitData.append('linkedinUrl', formData.linkedinUrl);
+            submitData.append('availability', formData.availability);
+            submitData.append('mentorType', formData.mentorType);
+            submitData.append('mentorTypeOther', formData.mentorTypeOther);
+            submitData.append('portfolioUrl', formData.portfolioUrl);
+
+            // Append profile image if selected
+            if (profileImageFile) {
+                submitData.append('profileImage', profileImageFile);
+            }
+
             const response = await fetch('/api/mentor/apply', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ...formData,
-                    expertise: formData.expertise.split(',').map(e => e.trim()).filter(Boolean),
-                    languages: formData.languages.split(',').map(l => l.trim()).filter(Boolean),
-                    // If backend expects portfolioUrl, map linkedin to it or keep distinct depending on schema
-                    // For now sending both if schema permits, or just linkedin as linkedinUrl
-                }),
+                body: submitData,
             });
 
             const result = await response.json();

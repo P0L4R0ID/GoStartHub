@@ -179,6 +179,7 @@ model MentorApplication {
   mentorType    String?   // e.g., career, technical, business
   languages     String?   // JSON string array
   linkedin      String?
+  profileImage  String?   // Path to uploaded profile photo
   status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
   submittedAt   DateTime  @default(now())
   reviewedAt    DateTime?

@@ -5,7 +5,7 @@ import { prisma } from './prisma';
  * Get user ID from authentication cookies
  */
 export async function getUserIdFromCookies(): Promise<string | null> {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const userId = cookieStore.get('gostarthub_user_id')?.value;
     return userId || null;
 }

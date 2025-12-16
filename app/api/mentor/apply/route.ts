@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-utils';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 
 export async function POST(request: Request) {
     try {
@@ -55,26 +53,14 @@ export async function POST(request: Request) {
             );
         }
 
-        // Handle profile image upload
-        let profileImagePath: string | null = null;
+        // Handle profile image - convert to base64 data URL for Vercel compatibility
+        let profileImageData: string | null = null;
         if (profileImageFile && profileImageFile.size > 0) {
             const bytes = await profileImageFile.arrayBuffer();
             const buffer = Buffer.from(bytes);
-
-            // Create unique filename
-            const ext = path.extname(profileImageFile.name) || '.jpg';
-            const filename = `mentor-${userId}-${Date.now()}${ext}`;
-
-            // Ensure upload directory exists
-            const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'mentors');
-            await mkdir(uploadDir, { recursive: true });
-
-            // Save file
-            const filePath = path.join(uploadDir, filename);
-            await writeFile(filePath, buffer);
-
-            // Store relative path for web access
-            profileImagePath = `/uploads/mentors/${filename}`;
+            const base64 = buffer.toString('base64');
+            const mimeType = profileImageFile.type || 'image/jpeg';
+            profileImageData = `data:${mimeType};base64,${base64}`;
         }
 
         // Create mentor application
@@ -91,7 +77,7 @@ export async function POST(request: Request) {
                 mentorType: finalMentorType || null,
                 languages: languages,
                 linkedin: linkedinUrl || null,
-                profileImage: profileImagePath,
+                profileImage: profileImageData,
                 status: 'PENDING'
             }
         });

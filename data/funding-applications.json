@@ -1,0 +1,36 @@
+[
+  {
+    "id": "1765185004688",
+    "opportunityId": "fund1",
+    "startupId": "c22d9ff5-1773-4699-9599-f338525b8732",
+    "innovatorId": "deedc7ea-7b3b-4653-866b-7fcbc3d387ea",
+    "innovatorName": "Doe",
+    "innovatorEmail": "Doe@gmail.com",
+    "status": "pending",
+    "message": "asdadasd",
+    "createdAt": "2025-12-08T09:10:04.688Z",
+    "updatedAt": "2025-12-08T09:10:06.081Z",
+    "prototypeId": "c22d9ff5-1773-4699-9599-f338525b8732",
+    "fullName": "Doe",
+    "icNumber": "asda",
+    "phoneNumber": "asdasd",
+    "country": "Malaysia",
+    "hasRegisteredCompany": false,
+    "companyName": "",
+    "companyWebsite": "",
+    "companyDescription": "",
+    "companyIncorporatedDate": "",
+    "officeAddress": "",
+    "hasOfficeInMalaysia": "",
+    "companyStage": "",
+    "focusArea": [
+      "HealthTech"
+    ],
+    "technologyArea": [
+      "Cloud Computing",
+      "Robotics"
+    ],
+    "proposedActivities": [],
+    "industryFocus": []
+  }
+]

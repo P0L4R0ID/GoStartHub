@@ -1,0 +1,226 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Startup {
+  id              String   @id @default(uuid())
+  title           String
+  description     String
+  category        String
+  stage           String
+  projectType     String   // University, Individual, Company
+  
+  // Organization Details
+  companyName     String?
+  university      String?
+  
+  // Contact Information
+  contactLinkedIn String
+  contactEmail    String
+  contactWebsite  String?
+  
+  // Team & Content
+  teamMembers     String   // Stored as JSON string
+  milestones      String?
+  pitchDeck       String   // Path to the file
+  
+  // Enhanced Details
+  logo            String?  // Path to the file
+  bannerImage     String?  // Banner/cover image
+  problem         String?  // Problem statement
+  solution        String?  // Proposed solution
+  targetCustomers String?  // Target audience/customers
+  demoVideoUrl    String?  // YouTube/Loom link
+  
+  // Metadata
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  views           Int      @default(0)
+  likes           Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  innovatorId     String? // Optional for now to avoid breaking existing data, but ideally required
+  innovator       User?   @relation(fields: [innovatorId], references: [id])
+  mentorshipRequests MentorshipRequest[]
+  mentorshipRelationships MentorshipRelationship[]
+  news            StartupNews[]
+}
+
+model StartupNews {
+  id          String   @id @default(uuid())
+  startupId   String
+  title       String
+  content     String
+  // Optional: Add link or image if needed later
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  startup     Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("USER") // USER, MENTOR, ADMIN
+  
+  // Mentor-specific fields
+  expertise String?  // JSON string array of expertise areas
+  bio       String?
+  company   String?
+  linkedIn  String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDisabled Boolean @default(false) // For suspending mentor accounts
+  
+  // Relations
+  startups                    Startup[]
+  mentorRequestsSent          MentorshipRequest[] @relation("MentorRequests")
+  mentorshipsAsMentor         MentorshipRelationship[] @relation("MentorRelationships")
+  messagesSent                SessionMessage[]
+  filesUploaded               SessionFile[]
+  notesAuthored               SessionNote[]
+  mentorApplications          MentorApplication[]
+  mentorProfile               MentorProfile?
+  scheduledCallsProposed      ScheduledCall[]
+}
+
+model MentorshipRequest {
+  id          String   @id @default(uuid())
+  mentorId    String
+  startupId   String
+  status      String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  initiatedBy String   // MENTOR, STARTUP
+  message     String?
+  response    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  mentor      User     @relation("MentorRequests", fields: [mentorId], references: [id], onDelete: Cascade)
+  startup     Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+}
+
+model MentorshipRelationship {
+  id          String   @id @default(uuid())
+  mentorId    String
+  startupId   String
+  status      String   @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  mentor      User     @relation("MentorRelationships", fields: [mentorId], references: [id], onDelete: Cascade)
+  startup     Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  messages    SessionMessage[]
+  files       SessionFile[]
+  notes       SessionNote[]
+  scheduledCalls ScheduledCall[]
+}
+
+model SessionMessage {
+  id             String   @id @default(uuid())
+  relationshipId String
+  senderId       String
+  content        String
+  createdAt      DateTime @default(now())
+  
+  relationship   MentorshipRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  sender         User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model SessionFile {
+  id             String   @id @default(uuid())
+  relationshipId String
+  uploadedById   String
+  fileName       String
+  filePath       String
+  fileSize       Int
+  createdAt      DateTime @default(now())
+  
+  relationship   MentorshipRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  uploadedBy     User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+}
+
+model SessionNote {
+  id             String   @id @default(uuid())
+  relationshipId String
+  authorId       String
+  title          String
+  content        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  relationship   MentorshipRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  author         User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model MentorApplication {
+  id            String    @id @default(uuid())
+  userId        String
+  bio           String
+  expertise     String    // JSON string array
+  experience    String
+  portfolioUrl  String?
+  company       String?
+  availability  String?
+  mentorType    String?   // e.g., career, technical, business
+  languages     String?   // JSON string array
+  linkedin      String?
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  submittedAt   DateTime  @default(now())
+  reviewedAt    DateTime?
+  adminNotes    String?
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MentorProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  bio           String
+  expertise     String   // JSON string array
+  experience    String
+  company       String?
+  availability  String   @default("available")
+  profileImage  String?
+  socialLinks   String?  // JSON string for LinkedIn, Twitter, etc.
+  mentorType    String?  // e.g., career, technical, business
+  languages     String?  // JSON string array
+  linkedin      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ScheduledCall {
+  id             String   @id @default(uuid())
+  relationshipId String
+  proposedById   String
+  title          String?
+  description    String?
+  scheduledAt    DateTime
+  duration       Int      @default(30) // Duration in minutes
+  status         String   @default("PENDING") // PENDING, CONFIRMED, DECLINED, COMPLETED, CANCELLED
+  meetingUrl     String?  // Optional custom meeting URL
+  reminderSent   Boolean  @default(false) // Track if reminder email was sent
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  relationship   MentorshipRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  proposedBy     User     @relation(fields: [proposedById], references: [id], onDelete: Cascade)
+}
+

@@ -57,15 +57,75 @@ export default function MentorApplyPage() {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Compress image to reduce file size for upload
+    const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7): Promise<File> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+
+                    // Scale down if needed
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                const compressedFile = new File([blob], file.name, {
+                                    type: 'image/jpeg',
+                                    lastModified: Date.now(),
+                                });
+                                resolve(compressedFile);
+                            } else {
+                                reject(new Error('Failed to compress image'));
+                            }
+                        },
+                        'image/jpeg',
+                        quality
+                    );
+                };
+                img.onerror = reject;
+                img.src = e.target?.result as string;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setProfileImageFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfileImage(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            try {
+                // Compress image to reduce size (max 800px width, 70% quality)
+                const compressedFile = await compressImage(file, 800, 0.7);
+                setProfileImageFile(compressedFile);
+
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setProfileImage(reader.result as string);
+                };
+                reader.readAsDataURL(compressedFile);
+            } catch (err) {
+                console.error('Image compression failed:', err);
+                // Fall back to original file if compression fails
+                setProfileImageFile(file);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setProfileImage(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+            }
         }
     };
 

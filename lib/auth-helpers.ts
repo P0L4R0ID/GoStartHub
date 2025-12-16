@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function verifyMentorSession() {
     // Use regular user session, just check for MENTOR role
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const userId = cookieStore.get('gostarthub_user_id');
 
     if (!userId) {
@@ -22,7 +22,7 @@ export async function verifyMentorSession() {
 }
 
 export async function verifyUserSession() {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const userId = cookieStore.get('gostarthub_user_id');
 
     if (!userId) {
@@ -37,7 +37,7 @@ export async function verifyUserSession() {
 }
 
 export async function verifyAdminSession() {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const adminSession = cookieStore.get('gostarthub_admin_session');
     const userId = cookieStore.get('gostarthub_user_id');
 
@@ -57,7 +57,7 @@ export async function verifyAdminSession() {
 }
 
 export async function getUserFromSession() {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const userId = cookieStore.get('gostarthub_user_id');
 
     if (!userId) {

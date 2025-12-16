@@ -177,6 +177,9 @@ export interface FundingOpportunity {
   deadline: string;
   status: 'open' | 'closed';
   applications: string[];
+  featured?: boolean;
+  officialUrl?: string;
+  grantDuration?: string;
 }
 
 export interface Application {

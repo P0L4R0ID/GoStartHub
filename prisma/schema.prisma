@@ -225,3 +225,55 @@ model ScheduledCall {
   proposedBy     User     @relation(fields: [proposedById], references: [id], onDelete: Cascade)
 }
 
+model FundingOpportunity {
+  id            String   @id @default(uuid())
+  title         String
+  description   String
+  providerName  String
+  amount        Int      // Funding amount in MYR
+  deadline      DateTime
+  requirements  String   // JSON string array
+  status        String   @default("ACTIVE") // ACTIVE, CLOSED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  applications  FundingApplication[]
+}
+
+model FundingApplication {
+  id                   String   @id @default(uuid())
+  opportunityId        String
+  startupId            String?
+  innovatorId          String
+  innovatorName        String
+  innovatorEmail       String
+  message              String
+  status               String   @default("PENDING") // PENDING, APPROVED, REJECTED
+
+  // Personal Information
+  fullName             String?
+  icNumber             String?
+  phoneNumber          String?
+  country              String?
+
+  // Company Information
+  hasRegisteredCompany Boolean  @default(false)
+  companyName          String?
+  companyWebsite       String?
+  companyDescription   String?
+  companyIncorporatedDate String?
+  officeAddress        String?
+  hasOfficeInMalaysia  String?
+  companyStage         String?
+
+  // Focus Areas (stored as JSON strings)
+  focusArea            String?
+  technologyArea       String?
+  proposedActivities   String?
+  industryFocus        String?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  opportunity          FundingOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+}

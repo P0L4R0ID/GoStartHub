@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Edit, DollarSign, Calendar, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Edit, DollarSign, Calendar, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function FundingOpportunitiesPage() {
@@ -16,6 +16,8 @@ export default function FundingOpportunitiesPage() {
     const [opportunities, setOpportunities] = useState<any[]>([]);
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -34,54 +36,93 @@ export default function FundingOpportunitiesPage() {
         loadOpportunities();
     }, [router]);
 
-    const loadOpportunities = () => {
-        const opps = storage.getFundingOpportunities();
-        setOpportunities(opps);
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        const opps = storage.getFundingOpportunities();
-        const newOpp = {
-            id: editingId || `fund${Date.now()}`,
-            title: formData.title,
-            description: formData.description,
-            amount: parseInt(formData.amount),
-            deadline: formData.deadline,
-            providerName: formData.providerName,
-            requirements: formData.requirements.filter(r => r.trim()),
-            status: 'open' as const,
-            applications: [],
-            createdAt: new Date().toISOString(),
-        };
-
-        if (editingId) {
-            const index = opps.findIndex(o => o.id === editingId);
-            opps[index] = newOpp;
-        } else {
-            opps.push(newOpp);
+    const loadOpportunities = async () => {
+        setIsLoading(true);
+        try {
+            const res = await fetch('/api/funding-opportunities');
+            if (res.ok) {
+                const data = await res.json();
+                const parsedOpps = (data.data || []).map((opp: any) => ({
+                    ...opp,
+                    requirements: opp.requirements ? (typeof opp.requirements === 'string' ? JSON.parse(opp.requirements) : opp.requirements) : [],
+                }));
+                setOpportunities(parsedOpps);
+            }
+        } catch (error) {
+            console.error('Error loading opportunities:', error);
+        } finally {
+            setIsLoading(false);
         }
-
-        storage.saveFundingOpportunities(opps);
-        resetForm();
-        loadOpportunities();
     };
 
-    const handleDelete = (id: string) => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+
+        try {
+            const payload = {
+                title: formData.title,
+                description: formData.description,
+                amount: parseInt(formData.amount),
+                deadline: formData.deadline,
+                providerName: formData.providerName,
+                requirements: formData.requirements.filter(r => r.trim()),
+            };
+
+            if (editingId) {
+                // Update existing opportunity
+                const res = await fetch('/api/funding-opportunities', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: editingId, ...payload }),
+                });
+                if (!res.ok) throw new Error('Failed to update');
+            } else {
+                // Create new opportunity
+                const res = await fetch('/api/funding-opportunities', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (!res.ok) throw new Error('Failed to create');
+            }
+
+            resetForm();
+            await loadOpportunities();
+        } catch (error) {
+            console.error('Error saving opportunity:', error);
+            alert('Failed to save opportunity. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
         if (!confirm('Delete this funding opportunity?')) return;
-        const opps = storage.getFundingOpportunities().filter(o => o.id !== id);
-        storage.saveFundingOpportunities(opps);
-        loadOpportunities();
+
+        try {
+            const res = await fetch(`/api/funding-opportunities?id=${id}`, {
+                method: 'DELETE',
+            });
+            if (res.ok) {
+                await loadOpportunities();
+            }
+        } catch (error) {
+            console.error('Error deleting opportunity:', error);
+        }
     };
 
     const handleEdit = (opp: any) => {
         setEditingId(opp.id);
+        // Format date for input field
+        const deadlineDate = new Date(opp.deadline);
+        const formattedDeadline = deadlineDate.toISOString().split('T')[0];
+
         setFormData({
             title: opp.title,
             description: opp.description,
             amount: opp.amount.toString(),
-            deadline: opp.deadline,
+            deadline: formattedDeadline,
             providerName: opp.providerName,
             requirements: opp.requirements.length > 0 ? opp.requirements : [''],
         });
@@ -114,6 +155,14 @@ export default function FundingOpportunitiesPage() {
     const removeRequirement = (index: number) => {
         setFormData({ ...formData, requirements: formData.requirements.filter((_, i) => i !== index) });
     };
+
+    if (isLoading) {
+        return (
+            <div className="container mx-auto py-12 px-4 max-w-6xl flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="container mx-auto py-12 px-4 max-w-6xl">
@@ -226,8 +275,15 @@ export default function FundingOpportunitiesPage() {
                             </div>
 
                             <div className="flex gap-3">
-                                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                                    {editingId ? 'Update' : 'Create'} Opportunity
+                                <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>{editingId ? 'Update' : 'Create'} Opportunity</>
+                                    )}
                                 </Button>
                                 <Button type="button" variant="outline" onClick={resetForm}>
                                     Cancel
@@ -270,7 +326,7 @@ export default function FundingOpportunitiesPage() {
                                         <DollarSign className="h-5 w-5 text-green-600" />
                                         <div>
                                             <p className="text-sm text-muted-foreground">Amount</p>
-                                            <p className="font-semibold">RM {opp.amount.toLocaleString()}</p>
+                                            <p className="font-semibold">RM {opp.amount?.toLocaleString()}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -286,14 +342,16 @@ export default function FundingOpportunitiesPage() {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <p className="text-sm font-semibold mb-2">Requirements:</p>
-                                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                                        {opp.requirements.map((req: string, idx: number) => (
-                                            <li key={idx}>{req}</li>
-                                        ))}
-                                    </ul>
-                                </div>
+                                {opp.requirements && opp.requirements.length > 0 && (
+                                    <div>
+                                        <p className="text-sm font-semibold mb-2">Requirements:</p>
+                                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                            {opp.requirements.map((req: string, idx: number) => (
+                                                <li key={idx}>{req}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     ))

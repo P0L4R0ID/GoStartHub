@@ -80,16 +80,38 @@ export default function FundingApplicationPage() {
     }
 
     const loadData = async () => {
-      // 1. Load Opportunity
-      const opportunities = storage.getFundingOpportunities();
-      const found = opportunities.find((opp: FundingOpportunity) => opp.id === params.id);
+      // 1. Load Opportunity from API
+      try {
+        const oppRes = await fetch(`/api/funding-opportunities?id=${params.id}`);
+        if (oppRes.ok) {
+          const oppData = await oppRes.json();
+          const opportunities = oppData.data || [];
+          const found = opportunities.find((opp: any) => opp.id === params.id);
 
-      if (!found) {
-        setError('Funding opportunity not found');
+          if (found) {
+            // Parse requirements if it's a JSON string
+            const parsedOpp = {
+              ...found,
+              requirements: found.requirements ? (typeof found.requirements === 'string' ? JSON.parse(found.requirements) : found.requirements) : [],
+            };
+            setOpportunity(parsedOpp);
+          } else {
+            setError('Funding opportunity not found');
+            setIsLoading(false);
+            return;
+          }
+        } else {
+          setError('Failed to load funding opportunity');
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Error loading opportunity:', err);
+        setError('Failed to load funding opportunity');
         setIsLoading(false);
         return;
       }
-      setOpportunity(found);
+
 
       // 2. Load User Startups
       try {

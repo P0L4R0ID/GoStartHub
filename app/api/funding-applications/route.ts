@@ -1,38 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-// File-based storage for API routes
-const DATA_FILE = path.join(process.cwd(), 'data', 'funding-applications.json');
-
-const ensureDataDir = () => {
-  const dataDir = path.dirname(DATA_FILE);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-};
-
-const readApplications = (): any[] => {
-  try {
-    ensureDataDir();
-    if (fs.existsSync(DATA_FILE)) {
-      const data = fs.readFileSync(DATA_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (e) {
-    console.error('Error reading applications:', e);
-  }
-  return [];
-};
-
-const writeApplications = (applications: any[]) => {
-  try {
-    ensureDataDir();
-    fs.writeFileSync(DATA_FILE, JSON.stringify(applications, null, 2));
-  } catch (e) {
-    console.error('Error writing applications:', e);
-  }
-};
+import { prisma } from '@/lib/prisma';
 
 // GET - Fetch funding applications
 export async function GET(request: NextRequest) {
@@ -40,37 +7,38 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const opportunityId = searchParams.get('opportunityId');
     const innovatorId = searchParams.get('innovatorId');
-    const prototypeId = searchParams.get('prototypeId');
+    const startupId = searchParams.get('startupId');
     const status = searchParams.get('status');
 
-    const applications = readApplications();
-    let filteredApplications = applications;
+    const where: any = {};
 
     if (opportunityId) {
-      filteredApplications = filteredApplications.filter(
-        (app: any) => app.opportunityId === opportunityId
-      );
+      where.opportunityId = opportunityId;
     }
 
     if (innovatorId) {
-      filteredApplications = filteredApplications.filter(
-        (app: any) => app.innovatorId === innovatorId
-      );
+      where.innovatorId = innovatorId;
     }
 
-    if (prototypeId) {
-      filteredApplications = filteredApplications.filter(
-        (app: any) => app.prototypeId === prototypeId
-      );
+    if (startupId) {
+      where.startupId = startupId;
     }
 
     if (status) {
-      filteredApplications = filteredApplications.filter(
-        (app: any) => app.status === status
-      );
+      where.status = status.toUpperCase();
     }
 
-    return NextResponse.json({ success: true, data: filteredApplications });
+    const applications = await prisma.fundingApplication.findMany({
+      where,
+      include: {
+        opportunity: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json({ success: true, data: applications });
   } catch (error) {
     console.error('Error fetching funding applications:', error);
     return NextResponse.json(
@@ -84,24 +52,24 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prototypeId, opportunityId, innovatorId, message } = body;
+    const { startupId, opportunityId, innovatorId, innovatorName, innovatorEmail, message } = body;
 
     // Validation - only require core fields
-    if (!prototypeId || !opportunityId || !innovatorId || !message) {
+    if (!opportunityId || !innovatorId || !message) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: prototypeId, opportunityId, innovatorId, message' },
+        { success: false, error: 'Missing required fields: opportunityId, innovatorId, message' },
         { status: 400 }
       );
     }
 
     // Check for duplicate applications
-    const applications = readApplications();
-    const duplicate = applications.find(
-      (app: any) =>
-        app.opportunityId === opportunityId &&
-        app.innovatorId === innovatorId &&
-        app.status === 'pending'
-    );
+    const duplicate = await prisma.fundingApplication.findFirst({
+      where: {
+        opportunityId,
+        innovatorId,
+        status: 'PENDING',
+      },
+    });
 
     if (duplicate) {
       return NextResponse.json(
@@ -110,17 +78,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Accept all fields from body
-    const newApplication = {
-      ...body, // Include all fields from the request
-      id: body.id || Date.now().toString(),
-      status: 'pending' as const,
-      createdAt: body.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    applications.push(newApplication);
-    writeApplications(applications);
+    // Create the application
+    const newApplication = await prisma.fundingApplication.create({
+      data: {
+        opportunityId,
+        startupId: startupId || null,
+        innovatorId,
+        innovatorName: innovatorName || '',
+        innovatorEmail: innovatorEmail || '',
+        message,
+        status: 'PENDING',
+        // Optional fields
+        fullName: body.fullName || null,
+        icNumber: body.icNumber || null,
+        phoneNumber: body.phoneNumber || null,
+        country: body.country || null,
+        hasRegisteredCompany: body.hasRegisteredCompany || false,
+        companyName: body.companyName || null,
+        companyWebsite: body.companyWebsite || null,
+        companyDescription: body.companyDescription || null,
+        companyIncorporatedDate: body.companyIncorporatedDate || null,
+        officeAddress: body.officeAddress || null,
+        hasOfficeInMalaysia: body.hasOfficeInMalaysia || null,
+        companyStage: body.companyStage || null,
+        focusArea: body.focusArea ? JSON.stringify(body.focusArea) : null,
+        technologyArea: body.technologyArea ? JSON.stringify(body.technologyArea) : null,
+        proposedActivities: body.proposedActivities ? JSON.stringify(body.proposedActivities) : null,
+        industryFocus: body.industryFocus ? JSON.stringify(body.industryFocus) : null,
+      },
+    });
 
     return NextResponse.json({ success: true, data: newApplication }, { status: 201 });
   } catch (error) {
@@ -132,3 +118,38 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PATCH - Update application status (for admin approval/rejection)
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, status } = body;
+
+    if (!id || !status) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields: id, status' },
+        { status: 400 }
+      );
+    }
+
+    const validStatuses = ['PENDING', 'APPROVED', 'REJECTED'];
+    if (!validStatuses.includes(status.toUpperCase())) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid status. Must be PENDING, APPROVED, or REJECTED' },
+        { status: 400 }
+      );
+    }
+
+    const updatedApplication = await prisma.fundingApplication.update({
+      where: { id },
+      data: { status: status.toUpperCase() },
+    });
+
+    return NextResponse.json({ success: true, data: updatedApplication });
+  } catch (error) {
+    console.error('Error updating funding application:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to update funding application' },
+      { status: 500 }
+    );
+  }
+}

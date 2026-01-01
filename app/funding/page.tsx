@@ -2,30 +2,47 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { storage } from '@/lib/storage';
 import { FundingOpportunity } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { ExternalLink, ArrowRight, Star, Clock, Building2, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, ArrowRight, Star, Clock, Building2, TrendingUp, CheckCircle2, Loader2 } from 'lucide-react';
 
 export default function FundingPage() {
   const [opportunities, setOpportunities] = useState<FundingOpportunity[]>([]);
-  const [filter, setFilter] = useState<string>('open');
+  const [filter, setFilter] = useState<string>('ACTIVE');
   const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
-    const allOpportunities = storage.getFundingOpportunities();
-    // Sort: featured first, then by amount (descending)
-    const sorted = allOpportunities.sort((a: any, b: any) => {
-      const aFeatured = (a.featured || false) ? 1 : 0;
-      const bFeatured = (b.featured || false) ? 1 : 0;
-      if (aFeatured !== bFeatured) return bFeatured - aFeatured;
-      return (b.amount || 0) - (a.amount || 0);
-    });
-    setOpportunities(sorted);
+    const loadOpportunities = async () => {
+      try {
+        const res = await fetch('/api/funding-opportunities');
+        if (res.ok) {
+          const data = await res.json();
+          const parsedOpps = (data.data || []).map((opp: any) => ({
+            ...opp,
+            requirements: opp.requirements ? (typeof opp.requirements === 'string' ? JSON.parse(opp.requirements) : opp.requirements) : [],
+          }));
+          // Sort: featured first, then by amount (descending)
+          const sorted = parsedOpps.sort((a: any, b: any) => {
+            const aFeatured = (a.featured || false) ? 1 : 0;
+            const bFeatured = (b.featured || false) ? 1 : 0;
+            if (aFeatured !== bFeatured) return bFeatured - aFeatured;
+            return (b.amount || 0) - (a.amount || 0);
+          });
+          setOpportunities(sorted);
+        }
+      } catch (error) {
+        console.error('Error loading funding opportunities:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadOpportunities();
   }, []);
+
 
   const filteredOpportunities = filter === 'all'
     ? opportunities
@@ -69,16 +86,20 @@ export default function FundingPage() {
 
           {/* Filter Tabs */}
           <div className="flex bg-slate-200/50 p-1 rounded-full mt-8 backdrop-blur-sm">
-            {['open', 'closed', 'all'].map((f) => (
+            {[
+              { value: 'ACTIVE', label: 'Open' },
+              { value: 'CLOSED', label: 'Closed' },
+              { value: 'all', label: 'All' }
+            ].map((f) => (
               <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-6 py-2 rounded-full text-sm font-semibold transition-all capitalize ${filter === f
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                key={f.value}
+                onClick={() => setFilter(f.value)}
+                className={`px-6 py-2 rounded-full text-sm font-semibold transition-all capitalize ${filter === f.value
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
                   }`}
               >
-                {f}
+                {f.label}
               </button>
             ))}
           </div>
@@ -101,7 +122,8 @@ export default function FundingPage() {
           <div className="grid grid-cols-1 gap-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
             {filteredOpportunities.map((opp) => {
               const timeLeft = daysRemaining(opp.deadline);
-              const isClosed = opp.status !== 'open';
+              const isClosed = opp.status !== 'ACTIVE';
+
 
               return (
                 <div key={opp.id} className="group relative">

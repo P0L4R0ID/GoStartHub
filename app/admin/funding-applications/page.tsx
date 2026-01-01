@@ -6,14 +6,16 @@ import { storage } from '@/lib/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, ArrowLeft, User, Building2, Calendar, DollarSign } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowLeft, User, Building2, Calendar, DollarSign, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function FundingApplicationsPage() {
     const router = useRouter();
     const [applications, setApplications] = useState<any[]>([]);
     const [opportunities, setOpportunities] = useState<any[]>([]);
-    const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+    const [filter, setFilter] = useState<'all' | 'PENDING' | 'APPROVED' | 'REJECTED'>('all');
+    const [isLoading, setIsLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     useEffect(() => {
         const session = storage.getSession();
@@ -24,30 +26,62 @@ export default function FundingApplicationsPage() {
         loadData();
     }, [router]);
 
-    const loadData = () => {
-        const apps = storage.getApplications();
-        const opps = storage.getFundingOpportunities();
-        setApplications(apps);
-        setOpportunities(opps);
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            // Fetch applications from API
+            const appsRes = await fetch('/api/funding-applications');
+            if (appsRes.ok) {
+                const appsData = await appsRes.json();
+                setApplications(appsData.data || []);
+            }
+
+            // Fetch opportunities from API
+            const oppsRes = await fetch('/api/funding-opportunities');
+            if (oppsRes.ok) {
+                const oppsData = await oppsRes.json();
+                setOpportunities(oppsData.data || []);
+            }
+        } catch (error) {
+            console.error('Error loading data:', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleApprove = async (appId: string) => {
-        const apps = storage.getApplications();
-        const index = apps.findIndex(a => a.id === appId);
-        if (index !== -1) {
-            apps[index].status = 'approved';
-            storage.saveApplications(apps);
-            loadData();
+        setActionLoading(appId);
+        try {
+            const res = await fetch('/api/funding-applications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: appId, status: 'APPROVED' }),
+            });
+            if (res.ok) {
+                await loadData();
+            }
+        } catch (error) {
+            console.error('Error approving application:', error);
+        } finally {
+            setActionLoading(null);
         }
     };
 
     const handleReject = async (appId: string) => {
-        const apps = storage.getApplications();
-        const index = apps.findIndex(a => a.id === appId);
-        if (index !== -1) {
-            apps[index].status = 'rejected';
-            storage.saveApplications(apps);
-            loadData();
+        setActionLoading(appId);
+        try {
+            const res = await fetch('/api/funding-applications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: appId, status: 'REJECTED' }),
+            });
+            if (res.ok) {
+                await loadData();
+            }
+        } catch (error) {
+            console.error('Error rejecting application:', error);
+        } finally {
+            setActionLoading(null);
         }
     };
 
@@ -55,10 +89,27 @@ export default function FundingApplicationsPage() {
         return opportunities.find(o => o.id === oppId);
     };
 
+    const parseJsonArray = (jsonString: string | null): string[] => {
+        if (!jsonString) return [];
+        try {
+            return JSON.parse(jsonString);
+        } catch {
+            return [];
+        }
+    };
+
     const filteredApps = applications.filter(app => {
         if (filter === 'all') return true;
         return app.status === filter;
     });
+
+    if (isLoading) {
+        return (
+            <div className="container mx-auto py-12 px-4 max-w-7xl flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="container mx-auto py-12 px-4 max-w-7xl">
@@ -71,7 +122,7 @@ export default function FundingApplicationsPage() {
 
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Funding Applications</h1>
-                <p className="text-muted-foreground">"Review and manage funding applications"</p>
+                <p className="text-muted-foreground">Review and manage funding applications</p>
             </div>
 
             <div className="flex gap-2 mb-6">
@@ -82,22 +133,22 @@ export default function FundingApplicationsPage() {
                     All ({applications.length})
                 </Button>
                 <Button
-                    variant={filter === 'pending' ? 'default' : 'outline'}
-                    onClick={() => setFilter('pending')}
+                    variant={filter === 'PENDING' ? 'default' : 'outline'}
+                    onClick={() => setFilter('PENDING')}
                 >
-                    Pending ({applications.filter(a => a.status === 'pending').length})
+                    Pending ({applications.filter(a => a.status === 'PENDING').length})
                 </Button>
                 <Button
-                    variant={filter === 'approved' ? 'default' : 'outline'}
-                    onClick={() => setFilter('approved')}
+                    variant={filter === 'APPROVED' ? 'default' : 'outline'}
+                    onClick={() => setFilter('APPROVED')}
                 >
-                    Approved ({applications.filter(a => a.status === 'approved').length})
+                    Approved ({applications.filter(a => a.status === 'APPROVED').length})
                 </Button>
                 <Button
-                    variant={filter === 'rejected' ? 'default' : 'outline'}
-                    onClick={() => setFilter('rejected')}
+                    variant={filter === 'REJECTED' ? 'default' : 'outline'}
+                    onClick={() => setFilter('REJECTED')}
                 >
-                    Rejected ({applications.filter(a => a.status === 'rejected').length})
+                    Rejected ({applications.filter(a => a.status === 'REJECTED').length})
                 </Button>
             </div>
 
@@ -110,7 +161,10 @@ export default function FundingApplicationsPage() {
                     </Card>
                 ) : (
                     filteredApps.map((app) => {
-                        const opp = getOpportunity(app.opportunityId);
+                        const opp = app.opportunity || getOpportunity(app.opportunityId);
+                        const focusAreas = parseJsonArray(app.focusArea);
+                        const techAreas = parseJsonArray(app.technologyArea);
+
                         return (
                             <Card key={app.id} className="hover:shadow-md transition-shadow">
                                 <CardHeader>
@@ -120,9 +174,9 @@ export default function FundingApplicationsPage() {
                                                 <CardTitle className="text-xl">{opp?.title || 'Unknown Opportunity'}</CardTitle>
                                                 <Badge
                                                     variant={
-                                                        app.status === 'approved'
+                                                        app.status === 'APPROVED'
                                                             ? 'default'
-                                                            : app.status === 'rejected'
+                                                            : app.status === 'REJECTED'
                                                                 ? 'destructive'
                                                                 : 'secondary'
                                                     }
@@ -134,24 +188,38 @@ export default function FundingApplicationsPage() {
                                                 Applied: {new Date(app.createdAt).toLocaleDateString()}
                                             </CardDescription>
                                         </div>
-                                        {app.status === 'pending' && (
+                                        {app.status === 'PENDING' && (
                                             <div className="flex gap-2">
                                                 <Button
                                                     size="sm"
                                                     variant="default"
                                                     className="bg-green-600 hover:bg-green-700"
                                                     onClick={() => handleApprove(app.id)}
+                                                    disabled={actionLoading === app.id}
                                                 >
-                                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                                    Approve
+                                                    {actionLoading === app.id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <>
+                                                            <CheckCircle className="h-4 w-4 mr-1" />
+                                                            Approve
+                                                        </>
+                                                    )}
                                                 </Button>
                                                 <Button
                                                     size="sm"
                                                     variant="destructive"
                                                     onClick={() => handleReject(app.id)}
+                                                    disabled={actionLoading === app.id}
                                                 >
-                                                    <XCircle className="h-4 w-4 mr-1" />
-                                                    Reject
+                                                    {actionLoading === app.id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <>
+                                                            <XCircle className="h-4 w-4 mr-1" />
+                                                            Reject
+                                                        </>
+                                                    )}
                                                 </Button>
                                             </div>
                                         )}
@@ -225,11 +293,11 @@ export default function FundingApplicationsPage() {
                                         </p>
                                     </div>
 
-                                    {app.focusArea && app.focusArea.length > 0 && (
+                                    {focusAreas.length > 0 && (
                                         <div className="mb-4">
                                             <h3 className="font-semibold mb-2">Focus Areas</h3>
                                             <div className="flex flex-wrap gap-2">
-                                                {app.focusArea.map((area: string) => (
+                                                {focusAreas.map((area: string) => (
                                                     <Badge key={area} variant="outline">
                                                         {area}
                                                     </Badge>
@@ -238,11 +306,11 @@ export default function FundingApplicationsPage() {
                                         </div>
                                     )}
 
-                                    {app.technologyArea && app.technologyArea.length > 0 && (
+                                    {techAreas.length > 0 && (
                                         <div>
                                             <h3 className="font-semibold mb-2">Technology Areas</h3>
                                             <div className="flex flex-wrap gap-2">
-                                                {app.technologyArea.map((tech: string) => (
+                                                {techAreas.map((tech: string) => (
                                                     <Badge key={tech} variant="outline">
                                                         {tech}
                                                     </Badge>

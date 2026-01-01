@@ -49,10 +49,11 @@ export default function DashboardPage() {
     const fetchAllData = async () => {
       try {
         // Parallel API calls for better performance
-        const [startupsRes, requestsRes, mentorshipsRes] = await Promise.all([
-          fetch(`/api/startups?status=all&innovatorId=${session.id}`),
-          fetch('/api/user/mentorship-requests'),
-          fetch('/api/user/mentorships'),
+        const [startupsRes, requestsRes, mentorshipsRes, fundingAppsRes] = await Promise.all([
+          fetch(`/api/startups?status=all&innovatorId=${session.id}`, { cache: 'no-store' }),
+          fetch('/api/user/mentorship-requests', { cache: 'no-store' }),
+          fetch('/api/user/mentorships', { cache: 'no-store' }),
+          fetch(`/api/funding-applications?innovatorId=${session.id}`, { cache: 'no-store' }),
         ]);
 
         // Process startups
@@ -94,6 +95,12 @@ export default function DashboardPage() {
           const data = await mentorshipsRes.json();
           setActiveMentorships(data.relationships || []);
         }
+
+        // Process funding applications from database
+        if (fundingAppsRes.ok) {
+          const data = await fundingAppsRes.json();
+          setFundingApplications(data.data || []);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       }
@@ -101,11 +108,7 @@ export default function DashboardPage() {
 
     fetchAllData();
 
-    // Load local storage data synchronously (fast)
-    const allApplications = storage.getApplications();
-    const userApplications = allApplications.filter((app: any) => app.innovatorId === session.id);
-    setFundingApplications(userApplications);
-
+    // Load local storage data synchronously (fast) - only for programmes and events
     const allProgrammeRegs = storage.getProgrammeRegistrations();
     const userProgrammeRegs = allProgrammeRegs.filter((reg: any) => reg.innovatorId === session.id);
     setProgrammeRegistrations(userProgrammeRegs);
@@ -119,7 +122,7 @@ export default function DashboardPage() {
   const userStats = useMemo(() => ({
     myStartups: startups.length,
     myFunding: startups.reduce((sum: number, s: any) => sum + (s.fundingReceived || 0), 0),
-    activeApplications: fundingApplications.filter((a: any) => a.status === 'pending').length,
+    activeApplications: fundingApplications.filter((a: any) => a.status === 'PENDING').length,
     activeMentorships: activeMentorships.length,
   }), [startups, fundingApplications, activeMentorships, mentorshipRequests]);
 
@@ -389,10 +392,10 @@ export default function DashboardPage() {
                     {fundingApplications.slice(0, 4).map((app) => (
                       <div key={app.id} className="bg-white p-3 rounded-lg border shadow-sm flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${app.status === 'approved' ? 'bg-green-500' : app.status === 'rejected' ? 'bg-red-500' : 'bg-yellow-500'}`} />
-                          <span className="text-sm font-medium">Application #{app.id.slice(-4)}</span>
+                          <div className={`w-2 h-2 rounded-full ${app.status === 'APPROVED' ? 'bg-green-500' : app.status === 'REJECTED' ? 'bg-red-500' : 'bg-yellow-500'}`} />
+                          <span className="text-sm font-medium">{app.opportunity?.title || `Application #${app.id.slice(-4)}`}</span>
                         </div>
-                        <Badge variant="secondary" className="text-xs capitalize">{app.status}</Badge>
+                        <Badge variant="secondary" className="text-xs capitalize">{app.status?.toLowerCase()}</Badge>
                       </div>
                     ))}
                   </div>

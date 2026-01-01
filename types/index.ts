@@ -175,7 +175,7 @@ export interface FundingOpportunity {
   category: string;
   requirements: string[];
   deadline: string;
-  status: 'open' | 'closed';
+  status: 'ACTIVE' | 'CLOSED';
   applications: string[];
   featured?: boolean;
   officialUrl?: string;
